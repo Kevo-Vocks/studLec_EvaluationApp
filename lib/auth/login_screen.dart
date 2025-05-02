@@ -68,110 +68,74 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Future<void> _login() async {
-  if (!_formKey.currentState!.validate()) return;
-
-  setState(() => _isLoading = true);
-
-  try {
-    final input = regNoController.text.trim();
-    final email = generateEmail(input);
-    final password = passwordController.text;
-
-    final docId = isStudent ? input.replaceAll('/', '_SLASH_').toLowerCase() : input.toUpperCase();
-
-    final userCredential = await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    final userModel = await _fetchUserData(docId);
-
-    setState(() => _isLoading = false);
-
-    // Dismiss the keyboard
-    FocusScope.of(context).unfocus();
-
-    // Show a snackbar for success
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Login successful! Redirecting...'),
-        backgroundColor: Color(0xFF008000),
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    // Delay slightly to show the snackbar before redirecting
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (isStudent) {
-      Navigator.pushReplacementNamed(
-        context,
-        AppRoutes.studentDashboard,
-        arguments: userModel,
-      );
-    } else {
-      Navigator.pushReplacementNamed(
-        context,
-        AppRoutes.lecturerDashboard,
-      );
-    }
-  } on FirebaseAuthException catch (e) {
-    setState(() => _isLoading = false);
-    String errorMessage;
-    switch (e.code) {
-      case 'user-not-found':
-        errorMessage = 'No user found for that email.';
-        break;
-      case 'wrong-password':
-        errorMessage = 'Wrong password provided.';
-        break;
-      case 'invalid-email':
-        errorMessage = 'Invalid email format.';
-        break;
-      case 'user-disabled':
-        errorMessage = 'This user account has been disabled.';
-        break;
-      default:
-        errorMessage = 'Login failed. Please try again.';
-    }
-    _showErrorDialog(errorMessage);
-  } catch (e) {
-    setState(() => _isLoading = false);
-    _showErrorDialog(e.toString());
-  }
-}
-
-  Future<void> _resetPassword() async {
-    final input = regNoController.text.trim();
-    if (input.isEmpty) {
-      _showErrorDialog('Please enter your ${isStudent ? "Registration Number" : "Lecturer ID"} to reset your password.');
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
+      final input = regNoController.text.trim();
       final email = generateEmail(input);
-      await _auth.sendPasswordResetEmail(email: email);
+      final password = passwordController.text;
+
+      final docId = isStudent ? input.replaceAll('/', '_SLASH_').toLowerCase() : input.toUpperCase();
+
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final userModel = await _fetchUserData(docId);
 
       setState(() => _isLoading = false);
 
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("Password Reset"),
-          content: Text('A password reset link has been sent to $email.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("OK"),
-            ),
-          ],
+      // Hide keyboard before showing snackbar
+      FocusScope.of(context).unfocus();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Login successful! Redirecting...'),
+          backgroundColor: Color(0xFF008000),
+          duration: Duration(seconds: 2),
         ),
       );
+
+      await Future.delayed(const Duration(seconds: 2));
+
+      if (isStudent) {
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.studentDashboard,
+          arguments: userModel,
+        );
+      } else {
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.lecturerDashboard,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() => _isLoading = false);
+      String errorMessage;
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'No user found for that email.';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Wrong password provided.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Invalid email format.';
+          break;
+        case 'user-disabled':
+          errorMessage = 'This user account has been disabled.';
+          break;
+        default:
+          errorMessage = 'Login failed. Please try again.';
+      }
+      _showErrorDialog(errorMessage);
     } catch (e) {
       setState(() => _isLoading = false);
-      _showErrorDialog('Failed to send password reset email: $e');
+      _showErrorDialog(e.toString());
     }
   }
 
@@ -193,138 +157,145 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset('assets/images/meru-logo.png', height: 120),
-                  const SizedBox(height: 40),
-                  Text(
-                    isStudent ? "Student Login" : "Lecturer Login",
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF008000),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  TextFormField(
-                    controller: regNoController,
-                    decoration: InputDecoration(
-                      labelText: isStudent ? "Registration Number" : "Lecturer ID",
-                      prefixIcon: const Icon(Icons.person, color: Color(0xFF008000)),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Color(0xFF008000)),
-                        borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(), // Hide keyboard when tapping outside
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset('assets/images/meru-logo.png', height: 120),
+                    const SizedBox(height: 40),
+                    Text(
+                      isStudent ? "Student Login" : "Lecturer Login",
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF008000),
                       ),
                     ),
-                    validator: (value) =>
-                        value == null || value.isEmpty ? "Enter ${isStudent ? 'RegNo' : 'Lecturer ID'}" : null,
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: passwordController,
-                    obscureText: !_isPasswordVisible,
-                    decoration: InputDecoration(
-                      labelText: "Password",
-                      prefixIcon: const Icon(Icons.lock, color: Color(0xFF008000)),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                          color: const Color(0xFF008000),
-                        ),
-                        onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Color(0xFF008000)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (value) =>
-                        value == null || value.isEmpty ? "Enter password" : null,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _login(),
-                  ),
-                  const SizedBox(height: 40),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF008000),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
+                    const SizedBox(height: 40),
+                    TextFormField(
+                      controller: regNoController,
+                      decoration: InputDecoration(
+                        labelText: isStudent ? "Registration Number" : "Lecturer ID",
+                        prefixIcon: const Icon(Icons.person, color: Color(0xFF008000)),
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      onPressed: _isLoading ? null : _login,
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text("Login", style: TextStyle(fontSize: 18)),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextButton(
-                    onPressed: _isLoading ? null : _resetPassword,
-                    child: const Text(
-                      "Forgot Password?",
-                      style: TextStyle(color: Color(0xFF008000), fontSize: 16),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Don't have an account? Contact admin.",
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                  ),
-                  const SizedBox(height: 30),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      TextButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () => setState(() => isStudent = true),
-                        child: Text(
-                          "Student",
-                          style: TextStyle(
-                            color: isStudent ? const Color(0xFF008000) : Colors.grey,
-                            fontWeight:
-                                isStudent ? FontWeight.bold : FontWeight.normal,
-                          ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Color(0xFF008000)),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      const Text("|", style: TextStyle(color: Colors.grey)),
-                      TextButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () => setState(() => isStudent = false),
-                        child: Text(
-                          "Lecturer",
-                          style: TextStyle(
-                            color: !isStudent ? const Color(0xFF008000) : Colors.grey,
-                            fontWeight:
-                                !isStudent ? FontWeight.bold : FontWeight.normal,
+                      validator: (value) =>
+                          value == null || value.isEmpty ? "Enter ${isStudent ? 'RegNo' : 'Lecturer ID'}" : null,
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: passwordController,
+                      obscureText: !_isPasswordVisible,
+                      decoration: InputDecoration(
+                        labelText: "Password",
+                        prefixIcon: const Icon(Icons.lock, color: Color(0xFF008000)),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            color: const Color(0xFF008000),
                           ),
+                          onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Color(0xFF008000)),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                    ],
-                  ),
-                ],
+                      validator: (value) =>
+                          value == null || value.isEmpty ? "Enter password" : null,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _login(),
+                    ),
+                    const SizedBox(height: 40),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF008000),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        onPressed: _isLoading ? null : _login,
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text("Login", style: TextStyle(fontSize: 18)),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          "Don't have an account?",
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          isStudent ? "Students should Visit Admissions Office in Admin Block 2" : "Contact your department",
+                          style: const TextStyle(color: Colors.grey, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            TextButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () => setState(() => isStudent = true),
+                              child: Text(
+                                "Student",
+                                style: TextStyle(
+                                  color: isStudent ? const Color(0xFF008000) : Colors.grey,
+                                  fontWeight:
+                                      isStudent ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                            const Text("|", style: TextStyle(color: Colors.grey)),
+                            TextButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () => setState(() => isStudent = false),
+                              child: Text(
+                                "Lecturer",
+                                style: TextStyle(
+                                  color: !isStudent ? const Color(0xFF008000) : Colors.grey,
+                                  fontWeight:
+                                      !isStudent ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
