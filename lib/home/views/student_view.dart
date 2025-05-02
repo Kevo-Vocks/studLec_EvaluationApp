@@ -3,6 +3,7 @@ import 'package:evaluation_app/home/controllers/student_controller.dart';
 import 'package:evaluation_app/home/widgets/exam_card_pdf.dart';
 import 'package:evaluation_app/home/widgets/student_info_card.dart';
 import 'package:evaluation_app/home/widgets/units_list.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:evaluation_app/model/user_model.dart';
@@ -11,19 +12,54 @@ import 'package:evaluation_app/routes/app_routes.dart';
 class StudentView extends StatefulWidget {
   final UserModel user;
   const StudentView({super.key, required this.user});
+  
 
   @override
   State<StudentView> createState() => _StudentViewState();
 }
 
 class _StudentViewState extends State<StudentView> with TickerProviderStateMixin {
+  bool _canPop =false; //State to control pop behaviour
+  void _handlePop(bool didPop, dynamic result) {
+  if (didPop) return; // If the pop already happened, do nothing
+
+  showDialog<bool>(
+    context: context,
+    barrierDismissible: false, // Prevent dismissing by tapping outside
+    builder: (context) => AlertDialog(
+      title: const Text('Logout'),
+      content: const Text('Do you want to log out?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('No'),
+        ),
+        TextButton(
+          onPressed: () async {
+            Navigator.of(context).pop(true); // Close dialog
+            // Perform logout
+            await FirebaseAuth.instance.signOut();
+            if (mounted) {
+              Navigator.pushReplacementNamed(context, '/login'); // Navigate to login
+            }
+          },
+          child: const Text('Yes'),
+        ),
+      ],
+    ),
+  );
+}
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => StudentController(widget.user, this),
-      child: Scaffold(
-        appBar: _buildAppBar(),
-        body: SafeArea(child: _buildBody()),
+      child: PopScope(
+        canPop: false,
+  onPopInvokedWithResult: _handlePop,
+        child: Scaffold(
+          appBar: _buildAppBar(),
+          body: SafeArea(child: _buildBody()),
+        ),
       ),
     );
   }

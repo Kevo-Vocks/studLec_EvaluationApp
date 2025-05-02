@@ -6,6 +6,7 @@ import 'package:evaluation_app/model/user_model.dart';
 import 'package:flutter/material.dart';
 
 class AppRoutes {
+  static const String root = '/';
   static const String login = '/login';
   static const String studentDashboard = '/student_dashboard';
   static const String evaluation = '/evaluation';
@@ -13,6 +14,11 @@ class AppRoutes {
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case root:
+        return MaterialPageRoute(
+          builder: (_) => const LoginScreen(),
+          settings: const RouteSettings(name: login),
+        );
       case login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
       case studentDashboard:
@@ -21,7 +27,7 @@ class AppRoutes {
           return _errorRoute('No user data provided');
         }
         return MaterialPageRoute(
-          builder: (_) => StudentView(user: loggedInUser), // Updated to use HomeView
+          builder: (_) => StudentView(user: loggedInUser),
         );
       case evaluation:
         final args = settings.arguments as Map<String, dynamic>?;
@@ -32,7 +38,6 @@ class AppRoutes {
           builder: (_) => EvaluationScreen(
             unit: args['unit'],
             studentReg: args['studentReg'],
-            // lecturerId: args['lecturerId'], // Added lecturerId parameter
           ),
         );
       case lecturerDashboard:
@@ -42,7 +47,6 @@ class AppRoutes {
     }
   }
 
-  // Helper method for error routes
   static MaterialPageRoute _errorRoute(String message) {
     return MaterialPageRoute(
       builder: (_) => Scaffold(

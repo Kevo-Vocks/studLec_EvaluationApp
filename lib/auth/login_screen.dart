@@ -68,75 +68,78 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    try {
-      final input = regNoController.text.trim();
-      final email = generateEmail(input);
-      final password = passwordController.text;
+  try {
+    final input = regNoController.text.trim();
+    final email = generateEmail(input);
+    final password = passwordController.text;
 
-      final docId = isStudent ? input.replaceAll('/', '_SLASH_').toLowerCase() : input.toUpperCase();
+    final docId = isStudent ? input.replaceAll('/', '_SLASH_').toLowerCase() : input.toUpperCase();
 
-      final userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
+    final userCredential = await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    final userModel = await _fetchUserData(docId);
+
+    setState(() => _isLoading = false);
+
+    // Dismiss the keyboard
+    FocusScope.of(context).unfocus();
+
+    // Show a snackbar for success
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Login successful! Redirecting...'),
+        backgroundColor: Color(0xFF008000),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    // Delay slightly to show the snackbar before redirecting
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (isStudent) {
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.studentDashboard,
+        arguments: userModel,
       );
-
-      final userModel = await _fetchUserData(docId);
-
-      setState(() => _isLoading = false);
-
-      // Show a snackbar instead of a dialog for success
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Login successful! Redirecting...'),
-          backgroundColor: Color(0xFF008000),
-          duration: Duration(seconds: 2),
-        ),
+    } else {
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.lecturerDashboard,
       );
-
-      // Delay slightly to show the snackbar before redirecting
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (isStudent) {
-        Navigator.pushReplacementNamed(
-          context,
-          AppRoutes.studentDashboard,
-          arguments: userModel,
-        );
-      } else {
-        Navigator.pushReplacementNamed(
-          context,
-          AppRoutes.lecturerDashboard,
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      setState(() => _isLoading = false);
-      String errorMessage;
-      switch (e.code) {
-        case 'user-not-found':
-          errorMessage = 'No user found for that email.';
-          break;
-        case 'wrong-password':
-          errorMessage = 'Wrong password provided.';
-          break;
-        case 'invalid-email':
-          errorMessage = 'Invalid email format.';
-          break;
-        case 'user-disabled':
-          errorMessage = 'This user account has been disabled.';
-          break;
-        default:
-          errorMessage = 'Login failed. Please try again.';
-      }
-      _showErrorDialog(errorMessage);
-    } catch (e) {
-      setState(() => _isLoading = false);
-      _showErrorDialog(e.toString());
     }
+  } on FirebaseAuthException catch (e) {
+    setState(() => _isLoading = false);
+    String errorMessage;
+    switch (e.code) {
+      case 'user-not-found':
+        errorMessage = 'No user found for that email.';
+        break;
+      case 'wrong-password':
+        errorMessage = 'Wrong password provided.';
+        break;
+      case 'invalid-email':
+        errorMessage = 'Invalid email format.';
+        break;
+      case 'user-disabled':
+        errorMessage = 'This user account has been disabled.';
+        break;
+      default:
+        errorMessage = 'Login failed. Please try again.';
+    }
+    _showErrorDialog(errorMessage);
+  } catch (e) {
+    setState(() => _isLoading = false);
+    _showErrorDialog(e.toString());
   }
+}
 
   Future<void> _resetPassword() async {
     final input = regNoController.text.trim();

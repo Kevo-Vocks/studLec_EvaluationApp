@@ -21,8 +21,9 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
   bool _isSubmitting = false;
   late Future<void> _fetchDataFuture;
   final EvaluationController _controller = EvaluationController();
-  
-  // Define the sections statically
+  final ScrollController _scrollController = ScrollController(); // Single ScrollController
+
+  // Define the sections statically (unchanged)
   final List<Map<String, dynamic>> _sections = [
     {
       'title': 'Background Information',
@@ -133,11 +134,17 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
     }
   }
 
+ @override
+  void dispose() {
+    _scrollController.dispose(); // Clean up the controller
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lecturer Evaluation', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
+        title: const Text('Lecturer Evaluation', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF008000),
       ),
       body: SafeArea(
@@ -151,7 +158,6 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
               return Center(child: Text('Error: ${snapshot.error}'));
             }
             
-        
             return Column(
               children: [
                 LinearProgressIndicator(
@@ -162,6 +168,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                 ),
                 Expanded(
                   child: SingleChildScrollView(
+                    controller: _scrollController, // Use the single controller
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -208,42 +215,48 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
   }
   
   
-  Widget _buildNavigationButtons() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          if (currentSection > 0)
-            ElevatedButton(
-              onPressed: () => setState(() => currentSection--),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey[400],
-                foregroundColor: Colors.black,
-              ),
-              child: const Text('Previous'),
-            )
-          else
-            const SizedBox(),
+ Widget _buildNavigationButtons() {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        if (currentSection > 0)
           ElevatedButton(
-            onPressed: _isSubmitting
-                ? null
-                : () {
-                    if (_formKey.currentState!.validate()) {
-                      _formKey.currentState!.save();
-                      if (_controller.validateSection(currentSection, _evaluation)) {
-                        if (currentSection < _sections.length - 1) {
-                          setState(() => currentSection++);
-                        } else {
-                          _submitForm();
-                        }
+            onPressed: () => setState(() {
+              currentSection--;
+              _scrollController.jumpTo(0); // Scroll to top when going back
+            }),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey[400],
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Previous'),
+          )
+        else
+          const SizedBox(),
+        ElevatedButton(
+          onPressed: _isSubmitting
+              ? null
+              : () {
+                  if (_formKey.currentState!.validate()) {
+                    _formKey.currentState!.save();
+                    if (_controller.validateSection(currentSection, _evaluation)) {
+                      if (currentSection < _sections.length - 1) {
+                        setState(() {
+                          currentSection++;
+                          _scrollController.jumpTo(0); // Scroll to top for next section
+                        });
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please complete all required fields')),
-                        );
+                        _submitForm();
                       }
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please complete all required fields')),
+                      );
                     }
-                  },
+                  }
+                },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF008000),
               foregroundColor: Colors.white,
@@ -252,8 +265,10 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                 ? const CircularProgressIndicator(color: Colors.white)
                 : Text(currentSection == _sections.length - 1 ? 'Submit Evaluation' : 'Next'),
           ),
-        ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
+
+
 }
